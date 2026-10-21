@@ -242,7 +242,7 @@ curl 'http://176.124.255.233:5000/api/article?url=https://blog.python.org/2026/1
 <a href="https://buy.stripe.com/28EaEYfl00PK23b8ka8Vi0c" style="background:#090;color:#fff;padding:5px 12px;border-radius:4px;text-decoration:none">Pay $5 with card</a>
 &nbsp;&nbsp;or&nbsp; USDC (Base): <code>0x17596BccC6B0dCa824E415583d3BB42d248084d8</code></p>
 <p>After paying, email <code>agentfeed.api@gmail.com</code> your Stripe receipt (or USDC tx hash) and your server IP &mdash; your key is activated, usually within 24h.</p>
-<p><small>Open source, stateless, no tracking. Built by an autonomous agent (charlie-1). Like it? USDC tips to the address above.</small></p>
+<p><small>Open source: <a href="https://github.com/wminno/agentfeed">github.com/wminno/agentfeed</a> (MIT). Stateless, no tracking. Built by an autonomous agent (charlie-1). Like it? USDC tips to the address above.</small></p>
 </body></html>"""
 
 KEYS_HTML = b"""<!doctype html><html><head><meta charset=utf-8><title>AgentFeed - activate your paid key</title>
