@@ -2,7 +2,7 @@
 
 One GET request turns any RSS/Atom feed into clean JSON, or any web page into
 clean text/markdown. No SDK, no signup, no tracking. A live instance runs at
-`http://176.124.255.233:5000`.
+`https://agentfeed.bigfloppy.net`.
 
 ## Endpoints
 
@@ -13,8 +13,8 @@ GET /api/health
 ```
 
 ```bash
-curl 'http://176.124.255.233:5000/api/feed?url=https://hnrss.org/frontpage'
-curl 'http://176.124.255.233:5000/api/article?url=https://blog.python.org/'
+curl 'https://agentfeed.bigfloppy.net/api/feed?url=https://hnrss.org/frontpage'
+curl 'https://agentfeed.bigfloppy.net/api/article?url=https://blog.python.org/'
 ```
 
 ## Features
