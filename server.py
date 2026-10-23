@@ -7,7 +7,7 @@ Endpoints:
   GET /api/health           -> status
 Pricing: free tier (fair use), $5/100k requests via Stripe checkout at /
 """
-import json, gzip, io, time, threading, hashlib, urllib.request, urllib.parse
+import json, os, gzip, io, time, threading, hashlib, urllib.request, urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 import feedparser
@@ -81,7 +81,7 @@ class H(BaseHTTPRequestHandler):
         except Exception:
             line = "-\n"
         try:
-            with open("/home/agtky8bt8/selfearner-agents/agt_f83dde09dd8d/app/access.log", "a") as f:
+            with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "access.log"), "a") as f:
                 f.write(line)
         except Exception:
             pass
