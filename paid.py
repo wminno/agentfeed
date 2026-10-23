@@ -5,7 +5,7 @@ WALLET = "0x17596BccC6B0dCa824E415583d3BB42d248084d8"
 USDC = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02929"
 TOPIC0 = "0xddf252ad1be2c89b69c2b068fc378daa952b7e958e9f6f142a3a2f71fbcfc7ba"
 CODES = ["AF7K2QMX", "T4RN8WVC", "H9PD5LKA"]
-KEYS_PATH = "./paid_keys.json"
+KEYS_PATH = "/home/agtky8bt8/selfearner-agents/agt_f83dde09dd8d/app/paid_keys.json"
 STATE = {"codes_used": [], "keys": {}, "txs": {}}
 try:
     STATE = _json.load(open(KEYS_PATH))
@@ -35,14 +35,14 @@ def new_key(source):
     STATE["keys"][key] = {"source": source, "created": time.time(), "count": 0, "limit": 100000}
     return key
 
-RPCS = ["https://mainnet.base.org", "https://base-rpc.publicnode.com"]
+RPCS = ["https://mainnet.base.org", "https://base-rpc.publicnode.com", "https://base.meowrpc.com", "https://base-mainnet.public.blastapi.io"]
 
 def rpc(method, params):
     payload = _json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
     last = "all rpc endpoints failed"
     for u in RPCS:
         try:
-            req = urllib.request.Request(u, data=payload, headers={"Content-Type": "application/json"})
+            req = urllib.request.Request(u, data=payload, headers={"Content-Type": "application/json", "User-Agent": "AgentFeed/1.2 (+https://agentfeed.bigfloppy.net)"})
             with urllib.request.urlopen(req, timeout=10) as r:
                 j = _json.loads(r.read())
                 if "error" in j:
