@@ -14,7 +14,7 @@ import feedparser
 import paid, trafilatura
 
 PORT = 5000
-VERSION = "1.1"
+VERSION = "1.2"
 START = time.time()
 UA = {"User-Agent": "Mozilla/5.0 (compatible; agentfeed-api/1.1; +https://github.com/agentfeed)"}
 
@@ -81,7 +81,7 @@ class H(BaseHTTPRequestHandler):
         except Exception:
             line = "-\n"
         try:
-            with open("./access.log", "a") as f:
+            with open("/home/agtky8bt8/selfearner-agents/agt_f83dde09dd8d/app/access.log", "a") as f:
                 f.write(line)
         except Exception:
             pass
@@ -111,19 +111,28 @@ class H(BaseHTTPRequestHandler):
             return self.send(*jobj(200, {"ok": True, "version": VERSION, "uptime_s": int(time.time() - START)}))
         if p != "/" and not rate_ok(ip):
             return self.send(*jobj(429, {"ok": False, "error": "rate limit: 30 req/min per IP. Get a key: see /"}))
+        if p == "/docs":
+            return self.send(200, {"Content-Type": "text/html; charset=utf-8"}, DOCS_HTML)
+        if p == "/sitemap.xml":
+            return self.send(200, {"Content-Type": "application/xml"}, SITEMAP_XML)
         if p == "/keys":
             return self.send(200, {"Content-Type": "text/html; charset=utf-8"}, KEYS_HTML)
         if p == "/":
             return self.send(200, {"Content-Type": "text/html; charset=utf-8"}, INDEX_HTML)
         if p == "/robots.txt":
-            return self.send(200, {"Content-Type": "text/plain"}, b"User-agent: *\nDisallow: /\n")
+            return self.send(200, {"Content-Type": "text/plain"}, b"User-agent: *\nAllow: /\nDisallow: /api/\n")
+        if p.startswith("/indexnow-") and p.endswith(".txt"):
+            k = p[len("/indexnow-"):-4]
+            if k == "a3f9d27c81b4e6502f1a9c83d47e2b60":
+                return self.send(200, {"Content-Type": "text/plain"}, b"a3f9d27c81b4e6502f1a9c83d47e2b60")
+            return self.send(404, {"Content-Type": "text/plain"}, b"not found")
 
         if p in ("/api/feed", "/api/article"):
             auth = self.headers.get("Authorization") or ""
             key = self.headers.get("X-Api-Key") or (auth[7:] if auth.startswith("Bearer ") else None) or q1(self, "key")
             if not paid.key_ok(key):
                 if not free_ok(ip):
-                    return self.send(*jobj(402, {"ok": False, "error": "free tier used up (30 requests/min per IP). Paid: $5 for 100k requests - see http://176.124.255.233:5000/keys"}))
+                    return self.send(*jobj(402, {"ok": False, "error": "free tier used up (3 URLs/day per IP). Paid: $5 for 100k requests - see /keys"}))
             else:
                 paid.bump_key(key)
             url = q1(self, "url")
@@ -219,6 +228,83 @@ class H(BaseHTTPRequestHandler):
             "ms": int((time.time() - t0) * 1000),
         }))
 
+DOCS_HTML = b"""<!doctype html><html><head><meta charset="utf-8">
+<title>AgentFeed API docs - RSS to JSON and article extraction API</title>
+<meta name="description" content="AgentFeed API reference: turn any RSS or Atom feed into clean JSON and extract clean article text or Markdown from any URL with one GET request. Free tier: 3 URLs/day per IP; paid key $5 for 100k requests.">
+<link rel="canonical" href="https://agentfeed.bigfloppy.net/docs">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{font-family:system-ui,sans-serif;max-width:780px;margin:40px auto;padding:0 16px;line-height:1.55}
+pre{background:#f4f4f4;padding:10px;border-radius:8px;overflow-x:auto;font-size:13px}
+code{background:#f4f4f4;padding:1px 4px;border-radius:4px}
+h2{margin-top:2em;border-bottom:1px solid #ddd;padding-bottom:4px}
+td,th{border:1px solid #ccc;padding:4px 8px;font-size:14px}</style></head><body>
+<h1>AgentFeed API &ndash; docs</h1>
+<p>Content extraction for AI agents and scripts: <b>one GET request</b> turns any RSS/Atom feed into clean JSON, or any web page into clean text or Markdown. No SDK, no signup for the free tier.</p>
+<p>Base URL: <code>https://agentfeed.bigfloppy.net</code></p>
+
+<h2>Authentication</h2>
+<p>None required for the free tier (3 URLs/day per IP). Paid keys (100,000 requests, valid 1 year, $5) go in any of:</p>
+<pre>Header: X-Api-Key: YOUR_KEY
+Header: Authorization: Bearer YOUR_KEY
+Query:  ?key=YOUR_KEY</pre>
+<p>Get a key: pay at <a href="/">the home page</a> (card or 5 USDC on Base), then activate instantly at <a href="/keys">/keys</a> with your receipt code or USDC transaction hash.</p>
+
+<h2>GET /api/feed</h2>
+<p>Parse an RSS or Atom feed into JSON. Query params: <code>url</code> (required, http/https).</p>
+<pre>curl 'https://agentfeed.bigfloppy.net/api/feed?url=https://hnrss.org/frontpage'</pre>
+<p>Response:</p>
+<pre>{"ok":true,
+ "feed_title":"Hacker News: Front Page",
+ "feed_link":"https://news.ycombinator.com/",
+ "count":30,
+ "entries":[{"title":"...","link":"https://...","published":"...","summary":"..."}]}</pre>
+<p>Returns up to 50 entries; <code>summary</code> is truncated to 500 chars. Errors: <code>422</code> if no RSS/Atom feed is found at the URL, <code>502</code> if the URL cannot be fetched, <code>400</code> if <code>url</code> is missing or not http(s).</p>
+
+<h2>GET /api/article</h2>
+<p>Extract the main content of a web page. Query params: <code>url</code> (required, http/https).</p>
+<pre>curl 'https://agentfeed.bigfloppy.net/api/article?url=https://en.wikipedia.org/wiki/RSS'</pre>
+<p>Response:</p>
+<pre>{"ok":true,
+ "url":"https://blog.python.org/...",
+ "title":"...",
+ "author":"...",
+ "date":"...",
+ "sitename":"...",
+ "text":"plain text of the article (up to 20,000 chars)",
+ "markdown":"article as Markdown (up to 40,000 chars)",
+ "text_chars":4812,
+ "ms":734}</pre>
+<p>Boilerplate (nav, ads, cookie banners) is stripped. Errors: <code>422</code> if no article text can be extracted (JS-only or paywalled pages), <code>502</code> if the URL cannot be fetched.</p>
+
+<h2>GET /api/health</h2>
+<pre>{"ok":true,"version":"1.2","uptime_s":6052}</pre>
+
+<h2>Rate limits and pricing</h2>
+<table><tr><th>Tier</th><th>Limit</th><th>Price</th></tr>
+<tr><td>Free</td><td>3 URLs/day per IP, no key</td><td>$0</td></tr>
+<tr><td>Paid key</td><td>100,000 requests, 1 year, no rate limit</td><td>$5 (card or 5 USDC on Base)</td></tr></table>
+<p>Exceeding the free tier returns <code>402</code> with an upgrade pointer. Keys are activated self-serve at <a href="/keys">/keys</a> in seconds.</p>
+
+<h2>Quick start (Python)</h2>
+<pre>import requests
+r = requests.get("https://agentfeed.bigfloppy.net/api/feed",
+                 params={"url": "https://hnrss.org/frontpage"},
+                 headers={"X-Api-Key": "YOUR_KEY"})
+data = r.json()
+for e in data["entries"][:10]:
+    print(e["title"], e["link"])</pre>
+
+<h2>About</h2>
+<p>Stateless, no tracking, open source (MIT): <a href="https://github.com/wminno/agentfeed">github.com/wminno/agentfeed</a>. Built and operated by an autonomous AI agent - see the <a href="/">landing page</a> for the full disclosure. Support: esther@bigfloppy.net</p>
+<p><a href="/">&larr; AgentFeed home</a></p>
+</body></html>"""
+
+SITEMAP_XML = b"""<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<url><loc>https://agentfeed.bigfloppy.net/</loc><lastmod>2026-10-23</lastmod><changefreq>weekly</changefreq></url>
+<url><loc>https://agentfeed.bigfloppy.net/docs</loc><lastmod>2026-10-23</lastmod><changefreq>monthly</changefreq></url>
+</urlset>"""
+
 INDEX_HTML = b"""<!doctype html><html><head><meta charset=utf-8><title>AgentFeed API</title>
     <meta name="description" content="Free API to parse any RSS/Atom feed or extract clean article text from any URL as JSON. 30 free requests per minute per IP; paid key $5 per 100k requests.">
 <meta name=viewport content="width=device-width,initial-scale=1">
@@ -233,15 +319,15 @@ page into clean text/markdown &mdash; no API key, no SDK, one GET request.</p>
 GET /api/article?url=&lt;page-url&gt;
 GET /api/health</pre>
 <h3>Examples</h3>
-<pre>curl 'http://176.124.255.233:5000/api/feed?url=https://hnrss.org/frontpage'
-curl 'http://176.124.255.233:5000/api/article?url=https://blog.python.org/2026/10/announcing.html'</pre>
+<pre>curl 'https://agentfeed.bigfloppy.net/api/feed?url=https://hnrss.org/frontpage'
+curl 'https://agentfeed.bigfloppy.net/api/article?url=https://en.wikipedia.org/wiki/RSS'</pre>
 <h3>Response</h3>
 <pre>{"ok":true,"feed_title":"Hacker News","count":30,"entries":[{"title":...,"link":...,"published":...,"summary":...}]}</pre>
-<p>Free: 30 req/min per IP, fair use.</p>
+<p>Free: 3 URLs/day per IP, no key needed (fair use).</p>
 <p>Paid tier &mdash; $5 per 100k requests, no rate limit, valid 1 year:
 <a href="https://buy.stripe.com/28EaEYfl00PK23b8ka8Vi0c" style="background:#090;color:#fff;padding:5px 12px;border-radius:4px;text-decoration:none">Pay $5 with card</a>
 &nbsp;&nbsp;or&nbsp; USDC (Base): <code>0x17596BccC6B0dCa824E415583d3BB42d248084d8</code></p>
-<p>After paying, email <code>agentfeed.api@gmail.com</code> your Stripe receipt (or USDC tx hash) and your server IP &mdash; your key is activated, usually within 24h.</p>
+<p>Activation is <b>instant and self-serve</b>: enter the activation code from your receipt (or your USDC transaction hash) at <a href="/keys">/keys</a> and your API key is issued on the spot. Full API reference: <a href="/docs">/docs</a>.</p>
 <p><small>Open source: <a href="https://github.com/wminno/agentfeed">github.com/wminno/agentfeed</a> (MIT). Stateless, no tracking. Built by an autonomous agent (charlie-1). Like it? USDC tips to the address above.</small></p>
 </body></html>"""
 
