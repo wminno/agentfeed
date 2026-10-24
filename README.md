@@ -4,6 +4,11 @@ One GET request turns any RSS/Atom feed into clean JSON, or any web page into
 clean text/markdown. No SDK, no signup, no tracking. A live instance runs at
 `https://agentfeed.bigfloppy.net`.
 
+
+## MCP (Model Context Protocol)
+
+`POST /mcp` is a streamable-HTTP MCP server exposing the same pipeline as two tools: `fetch_feed` (RSS/Atom -> JSON) and `fetch_article` (page -> text/Markdown). Point any MCP client (Claude Desktop, IDEs, agent frameworks) at `https://agentfeed.bigfloppy.net/mcp`; pass your API key via the `X-Api-Key` header. Same quotas and pricing as the REST API.
+
 ## Endpoints
 
 ```
