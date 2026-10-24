@@ -136,6 +136,11 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, {"Content-Type": "text/html; charset=utf-8"}, KEYS_HTML)
         if p == "/":
             return self.send(200, {"Content-Type": "text/html; charset=utf-8"}, INDEX_HTML)
+        if p.startswith("/.well-known/") and "/" not in p[13:]:
+            fn = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".well-known", p[13:])
+            if os.path.isfile(fn):
+                return self.send(200, {"Content-Type": "application/json"}, open(fn, "rb").read())
+            return self.send(404, {"Content-Type": "text/plain"}, b"not found")
         if p == "/robots.txt":
             return self.send(200, {"Content-Type": "text/plain"}, b"User-agent: *\nAllow: /\nDisallow: /api/\n")
         if p.startswith("/indexnow-") and p.endswith(".txt"):
