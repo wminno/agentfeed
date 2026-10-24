@@ -14,7 +14,7 @@ import feedparser
 import paid, trafilatura
 
 PORT = 5000
-VERSION = "1.2"
+VERSION = "1.3"
 START = time.time()
 UA = {"User-Agent": "Mozilla/5.0 (compatible; agentfeed-api/1.1; +https://github.com/agentfeed)"}
 
@@ -110,6 +110,7 @@ class H(BaseHTTPRequestHandler):
         try:
             self.route()
         except Exception as e:
+            self._head = False
             try:
                 c, h, b = jobj(500, {"ok": False, "error": str(e)[:300]})
                 self.send(c, h, b)
@@ -117,6 +118,10 @@ class H(BaseHTTPRequestHandler):
                 pass
 
     def route(self):
+        # handler instance is REUSED across keep-alive requests (and Caddy pools
+        # upstream connections), so the HEAD flag must be derived per request,
+        # never left set from a previous request on the same connection.
+        self._head = (self.command == "HEAD")
         ip = self.client_address[0]
         p = urlparse(self.path).path
         if p == "/api/health":
@@ -163,10 +168,11 @@ class H(BaseHTTPRequestHandler):
         if p == "/api/trial":
             if self.command == "HEAD":
                 return self.send(*jobj(405, {"ok": False, "error": "GET or POST /api/trial to get a free trial key (50 req/day, no email)"}))
-            k = paid.trial_key(ip)
-            if k:
-                return self.send(*jobj(200, {"ok": True, "api_key": k, "limit": 50, "note": "free trial key: 50 requests/day. Keep it; works immediately. Paid unlimited: $5 - see /keys"}))
-            return self.send(*jobj(429, {"ok": False, "error": "trial key already issued from this IP in the last 24 hours - use the one you have"}))
+            k, dup = paid.trial_key(ip)
+            msg = "free trial key: 50 requests/day. Keep it; works immediately. Paid unlimited: $5 - see /keys"
+            if dup:
+                msg = "your existing free trial key from this IP (50 req/day) - keep it, it still works. Paid unlimited: $5 - see /keys"
+            return self.send(*jobj(200, {"ok": True, "api_key": k, "limit": 50, "note": msg}))
 
         if p == "/favicon.ico":
             return self.send(404, {"Content-Type": "text/plain"}, b"404")

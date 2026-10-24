@@ -50,13 +50,13 @@ def trial_key(ip):
         for ip0 in [k for k, v in t.items() if now - v["issued"] > 86400]:
             del t[ip0]
         if ip in t:
-            return None
+            return t[ip]["key"], True
         k = "aft_" + secrets.token_hex(16)
         STATE["keys"][k] = {"source": "trial", "created": now, "count": 0, "limit": 50,
                             "daily": True, "day_start": now, "day_count": 0}
         t[ip] = {"key": k, "issued": now}
         save_state()
-        return k
+        return k, False
 
 def new_key(source):
     key = "afk_" + secrets.token_hex(16)
