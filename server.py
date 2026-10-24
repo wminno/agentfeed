@@ -92,9 +92,21 @@ class H(BaseHTTPRequestHandler):
         for k, v in headers.items():
             self.send_header(k, v)
         self.end_headers()
-        self.wfile.write(body)
+        if not getattr(self, "_head", False):
+            self.wfile.write(body)
 
     def do_GET(self):
+        try:
+            self.route()
+        except Exception as e:
+            try:
+                c, h, b = jobj(500, {"ok": False, "error": str(e)[:300]})
+                self.send(c, h, b)
+            except Exception:
+                pass
+
+    def do_HEAD(self):
+        self._head = True
         try:
             self.route()
         except Exception as e:
@@ -132,7 +144,7 @@ class H(BaseHTTPRequestHandler):
             key = self.headers.get("X-Api-Key") or (auth[7:] if auth.startswith("Bearer ") else None) or q1(self, "key")
             if not paid.key_ok(key):
                 if not free_ok(ip):
-                    return self.send(*jobj(402, {"ok": False, "error": "free tier used up (3 URLs/day per IP). Paid: $5 for 100k requests - see /keys"}))
+                    return self.send(*jobj(402, {"ok": False, "error": "free tier used up (3 URLs/day per IP). Free trial key (50 req/day, no email): GET /api/trial. Paid: $5 for 100k requests - see /keys"}))
             else:
                 paid.bump_key(key)
             url = q1(self, "url")
@@ -147,6 +159,14 @@ class H(BaseHTTPRequestHandler):
             if p == "/api/feed":
                 return self.do_feed(data)
             return self.do_article(data, url)
+
+        if p == "/api/trial":
+            if self.command == "HEAD":
+                return self.send(*jobj(405, {"ok": False, "error": "GET or POST /api/trial to get a free trial key (50 req/day, no email)"}))
+            k = paid.trial_key(ip)
+            if k:
+                return self.send(*jobj(200, {"ok": True, "api_key": k, "limit": 50, "note": "free trial key: 50 requests/day. Keep it; works immediately. Paid unlimited: $5 - see /keys"}))
+            return self.send(*jobj(429, {"ok": False, "error": "trial key already issued from this IP in the last 24 hours - use the one you have"}))
 
         if p == "/favicon.ico":
             return self.send(404, {"Content-Type": "text/plain"}, b"404")
@@ -243,11 +263,13 @@ td,th{border:1px solid #ccc;padding:4px 8px;font-size:14px}</style></head><body>
 <p>Base URL: <code>https://agentfeed.bigfloppy.net</code></p>
 
 <h2>Authentication</h2>
-<p>None required for the free tier (3 URLs/day per IP). Paid keys (100,000 requests, valid 1 year, $5) go in any of:</p>
+<p>For a quick test no key is needed (3 URLs/day per IP). For regular use, get a <b>free trial key</b> - 50 requests/day, no email, works instantly:</p>
+<pre>curl https://agentfeed.bigfloppy.net/api/trial</pre>
+<p>Paid keys (100,000 requests, valid 1 year, $5) go in any of:</p>
 <pre>Header: X-Api-Key: YOUR_KEY
 Header: Authorization: Bearer YOUR_KEY
 Query:  ?key=YOUR_KEY</pre>
-<p>Get a key: pay at <a href="/">the home page</a> (card or 5 USDC on Base), then activate instantly at <a href="/keys">/keys</a> with your receipt code or USDC transaction hash.</p>
+<p>Get a key: start free with <code>GET /api/trial</code> (50 req/day, no email), or pay at <a href="/">the home page</a> (card or 5 USDC on Base) and activate instantly at <a href="/keys">/keys</a> with your receipt code or USDC transaction hash.</p>
 
 <h2>GET /api/feed</h2>
 <p>Parse an RSS or Atom feed into JSON. Query params: <code>url</code> (required, http/https).</p>
@@ -281,7 +303,8 @@ Query:  ?key=YOUR_KEY</pre>
 
 <h2>Rate limits and pricing</h2>
 <table><tr><th>Tier</th><th>Limit</th><th>Price</th></tr>
-<tr><td>Free</td><td>3 URLs/day per IP, no key</td><td>$0</td></tr>
+<tr><td>Free (no key)</td><td>3 URLs/day per IP</td><td>$0</td></tr>
+<tr><td>Free trial key</td><td>50 requests/day, <code>GET /api/trial</code>, no email</td><td>$0</td></tr>
 <tr><td>Paid key</td><td>100,000 requests, 1 year, no rate limit</td><td>$5 (card or 5 USDC on Base)</td></tr></table>
 <p>Exceeding the free tier returns <code>402</code> with an upgrade pointer. Keys are activated self-serve at <a href="/keys">/keys</a> in seconds.</p>
 
@@ -323,7 +346,7 @@ GET /api/health</pre>
 curl 'https://agentfeed.bigfloppy.net/api/article?url=https://en.wikipedia.org/wiki/RSS'</pre>
 <h3>Response</h3>
 <pre>{"ok":true,"feed_title":"Hacker News","count":30,"entries":[{"title":...,"link":...,"published":...,"summary":...}]}</pre>
-<p>Free: 3 URLs/day per IP, no key needed (fair use).</p>
+<p>Free: 3 URLs/day per IP with no key, or a free trial key (50 requests/day, no email) via <code>GET /api/trial</code>.</p>
 <p>Paid tier &mdash; $5 per 100k requests, no rate limit, valid 1 year:
 <a href="https://buy.stripe.com/28EaEYfl00PK23b8ka8Vi0c" style="background:#090;color:#fff;padding:5px 12px;border-radius:4px;text-decoration:none">Pay $5 with card</a>
 &nbsp;&nbsp;or&nbsp; USDC (Base): <code>0x17596BccC6B0dCa824E415583d3BB42d248084d8</code></p>
@@ -346,7 +369,7 @@ KEYS_HTML = b"""<!doctype html><html><head><meta charset=utf-8><title>AgentFeed 
 <script>function go(){var o=document.getElementById('out');o.style.display='block';o.textContent='Checking...';
 fetch('/api/redeem',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:document.getElementById('c').value.trim(),tx:document.getElementById('t').value.trim()})})
 .then(r=>r.json()).then(j=>{o.textContent=JSON.stringify(j,null,2);}).catch(e=>{o.textContent='error: '+e;});}</script>
-<p><a href="/"><- back to AgentFeed home</a> | Free tier (3 URLs/day per IP) needs no key.</p>
+<p><a href="/"><- back to AgentFeed home</a> | Free: 3 URLs/day per IP without a key, or a trial key (50/day) via GET /api/trial.</p>
 </body></html>"""
 
 if __name__ == "__main__":

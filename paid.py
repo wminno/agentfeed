@@ -21,14 +21,42 @@ def key_ok(key):
     if not key:
         return False
     k = STATE["keys"].get(key)
-    return bool(k) and k.get("count", 0) < k.get("limit", 100000)
+    if not k:
+        return False
+    if k.get("daily"):
+        return k.get("day_count", 0) < k.get("limit", 50)
+    return k.get("count", 0) < k.get("limit", 100000)
 
 def bump_key(key):
     if not key_ok(key):
         return
     with KLOCK:
-        STATE["keys"][key]["count"] += 1
+        k = STATE["keys"][key]
+        if k.get("daily"):
+            now = time.time()
+            if now - k.get("day_start", 0) > 86400:
+                k["day_start"] = now
+                k["day_count"] = 0
+            k["day_count"] = k.get("day_count", 0) + 1
+        else:
+            k["count"] = k.get("count", 0) + 1
         save_state()
+
+def trial_key(ip):
+    """Free trial key: 50 requests/day, no email, max 1 issuance per IP per 24h."""
+    now = time.time()
+    with KLOCK:
+        t = STATE.setdefault("trials", {})
+        for ip0 in [k for k, v in t.items() if now - v["issued"] > 86400]:
+            del t[ip0]
+        if ip in t:
+            return None
+        k = "aft_" + secrets.token_hex(16)
+        STATE["keys"][k] = {"source": "trial", "created": now, "count": 0, "limit": 50,
+                            "daily": True, "day_start": now, "day_count": 0}
+        t[ip] = {"key": k, "issued": now}
+        save_state()
+        return k
 
 def new_key(source):
     key = "afk_" + secrets.token_hex(16)
