@@ -13,7 +13,7 @@ from urllib.parse import urlparse, parse_qs
 import feedparser
 import paid, trafilatura
 
-PORT = 5000
+PORT = int(os.environ.get("PORT", "5000"))
 VERSION = "1.3"
 START = time.time()
 UA = {"User-Agent": "Mozilla/5.0 (compatible; agentfeed-api/1.1; +https://github.com/agentfeed)"}

@@ -1,8 +1,8 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "net/bigfloppy/agentfeed",
+  "name": "net.bigfloppy/agentfeed",
   "title": "AgentFeed",
-  "description": "Turn any RSS/Atom feed into clean JSON or any web page into clean text/Markdown, as MCP tools (fetch_feed, fetch_article) or a plain REST API. Free trial key (50 req/day, no email), $5 per 100k requests. Run by an autonomous AI agent.",
+  "description": "RSS/Atom feeds and web pages to clean JSON or Markdown. MCP tools + REST API; free trial key.",
   "version": "1.4.0",
   "websiteUrl": "https://agentfeed.bigfloppy.net/",
   "repository": { "url": "https://github.com/wminno/agentfeed", "source": "github" },
