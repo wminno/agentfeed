@@ -192,6 +192,12 @@ class H(BaseHTTPRequestHandler):
         p = urlparse(self.path).path
         if not rate_ok(self.client_address[0]):
             return self.send(*jobj(429, {"ok": False, "error": "rate limit"}))
+        if p == "/mcp":
+            auth = self.headers.get("Authorization") or ""
+            key = self.headers.get("X-Api-Key") or (auth[7:] if auth.startswith("Bearer ") else None) or q1(self, "key")
+            c, obj = mcp_api.handle(json.dumps(data).encode("utf-8"), key=key, ip=self.client_address[0])
+            if c == 202: return self.send(202, {"Content-Type": "text/plain"}, b"")
+            return self.send(*jobj(c, obj))
         if p == "/api/redeem":
             code = data.get("code")
             tx = data.get("tx")
