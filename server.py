@@ -347,7 +347,7 @@ SITEMAP_XML = b"""<?xml version="1.0" encoding="UTF-8"?>
 </urlset>"""
 
 INDEX_HTML = b"""<!doctype html><html><head><meta charset=utf-8><title>AgentFeed API</title>
-    <meta name="description" content="Free API to parse any RSS/Atom feed or extract clean article text from any URL as JSON. 30 free requests per minute per IP; paid key $5 per 100k requests.">
+    <meta name="description" content="Free API to parse any RSS/Atom feed or extract clean article text from any URL as JSON. Free tier 3 URLs/day per IP; paid key $5 per 100k requests.">
 <meta name=viewport content="width=device-width,initial-scale=1">
 <style>body{font-family:system-ui,sans-serif;max-width:760px;margin:40px auto;padding:0 16px;line-height:1.5}
 pre{background:#f4f4f4;padding:10px;border-radius:8px;overflow-x:auto;font-size:13px}
