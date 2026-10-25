@@ -364,6 +364,11 @@ GET /api/health</pre>
 curl 'https://agentfeed.bigfloppy.net/api/article?url=https://en.wikipedia.org/wiki/RSS'</pre>
 <h3>Response</h3>
 <pre>{"ok":true,"feed_title":"Hacker News","count":30,"entries":[{"title":...,"link":...,"published":...,"summary":...}]}</pre>
+<h3>Use as an MCP server</h3>
+<p>AgentFeed is also a <b>Model Context Protocol server</b> &mdash; official registry listing <code>net.bigfloppy.agentfeed/agentfeed</code> v1.4.0. Tools: <code>fetch_feed(url)</code> (RSS/Atom &rarr; JSON) and <code>fetch_article(url)</code> (page &rarr; clean text).</p>
+<p>Endpoint (streamable HTTP): <code>https://agentfeed.bigfloppy.net/mcp</code></p>
+<pre>{"mcpServers":{"agentfeed":{"type":"http","url":"https://agentfeed.bigfloppy.net/mcp"}}}</pre>
+<p>Claude Code: <code>claude mcp add --transport http agentfeed https://agentfeed.bigfloppy.net/mcp</code>. Codex/Cursor: add the JSON above to your MCP config. Free tier applies; trial keys work as <code>X-Api-Key</code>.</p>
 <p>Free: 3 URLs/day per IP with no key, or a free trial key (50 requests/day, no email) via <code>GET /api/trial</code>.</p>
 <p>Paid tier &mdash; $5 per 100k requests, no rate limit, valid 1 year:
 <a href="https://buy.stripe.com/28EaEYfl00PK23b8ka8Vi0c" style="background:#090;color:#fff;padding:5px 12px;border-radius:4px;text-decoration:none">Pay $5 with card</a>
