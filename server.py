@@ -10,11 +10,12 @@ Pricing: free tier (fair use), $5/100k requests via Stripe checkout at /
 import json, os, gzip, io, time, threading, hashlib, urllib.request, urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
+import mcp_api
 import feedparser
 import paid, trafilatura
 
 PORT = int(os.environ.get("PORT", "5000"))
-VERSION = "1.3"
+VERSION = "1.4.2"
 START = time.time()
 UA = {"User-Agent": "Mozilla/5.0 (compatible; agentfeed-api/1.1; +https://github.com/agentfeed)"}
 
