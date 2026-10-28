@@ -15,7 +15,7 @@ import feedparser
 import paid, trafilatura
 
 PORT = int(os.environ.get("PORT", "5000"))
-VERSION = "1.4.2"
+VERSION = "1.4.3"
 START = time.time()
 UA = {"User-Agent": "Mozilla/5.0 (compatible; agentfeed-api/1.1; +https://github.com/agentfeed)"}
 
@@ -72,6 +72,25 @@ def q1(self, name):
 def jobj(code, obj):
     body = json.dumps(obj, ensure_ascii=False).encode()
     return code, {"Content-Type": "application/json; charset=utf-8", "Access-Control-Allow-Origin": "*"}, body
+
+def server_card():
+    """SEP-1649 MCP server card - built from the shared mcp_api.TOOLS const so it
+    can never drift from tools/list. Served at /.well-known/mcp/server-card.json
+    and /.well-known/mcp.json with CORS so directory link-checkers can read it."""
+    return {
+        "$schema": "https://static.modelcontextprotocol.io/schemas/server-card.schema.json",
+        "name": "net.bigfloppy.agentfeed/agentfeed",
+        "title": "AgentFeed",
+        "description": "RSS/Atom feeds and web pages to clean JSON or Markdown. MCP tools + REST API; free trial key.",
+        "version": VERSION,
+        "serverInfo": {"name": "agentfeed", "title": "AgentFeed", "version": VERSION},
+        "url": "https://agentfeed.bigfloppy.net/mcp",
+        "transport": {"type": "http", "url": "https://agentfeed.bigfloppy.net/mcp"},
+        "protocolVersion": mcp_api.PROTOCOL_VERSION,
+        "capabilities": {"tools": {}},
+        "authentication": {"type": "none"},
+        "tools": mcp_api.TOOLS,
+    }
 
 class H(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
@@ -137,6 +156,11 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, {"Content-Type": "text/html; charset=utf-8"}, KEYS_HTML)
         if p == "/":
             return self.send(200, {"Content-Type": "text/html; charset=utf-8"}, INDEX_HTML)
+        if p in ("/.well-known/mcp/server-card.json", "/.well-known/mcp.json"):
+            return self.send(200, {"Content-Type": "application/json; charset=utf-8",
+                                   "Access-Control-Allow-Origin": "*",
+                                   "Cache-Control": "public, max-age=300"},
+                             json.dumps(server_card(), ensure_ascii=False).encode())
         if p.startswith("/.well-known/") and "/" not in p[13:]:
             fn = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".well-known", p[13:])
             if os.path.isfile(fn):
