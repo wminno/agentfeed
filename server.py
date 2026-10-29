@@ -25,7 +25,7 @@ RL = {}          # ip -> list of timestamps
 RL_LIMIT = 30    # requests per minute per IP
 BLK = {}         # ip -> unblock-time
 
-def rate_ok(ip):
+def rate_ok(ip, key=None):
     now = time.time()
     with RL_LOCK:
         t = BLK.get(ip, 0)
@@ -36,6 +36,8 @@ def rate_ok(ip):
             BLK[ip] = now + 60
             RL[ip] = []
             return False
+        if key and paid.key_ok(key):
+            return True  # authenticated (trial or paid) key: per-key daily caps apply instead
         q.append(now)
         RL[ip] = q
         return True
@@ -54,6 +56,10 @@ def free_ok(ip):
         q.append(now)
         FREE[ip] = q
         return True
+
+def free_count():
+    with FLOCK:
+        return sum(len([x for x in q if x > time.time() - 86400]) for q in FREE.values())
 
 # --- outbound fetch with size/time caps ---------------------------------
 def fetch(url, max_bytes=2_000_000, timeout=15):
@@ -146,7 +152,15 @@ class H(BaseHTTPRequestHandler):
         p = urlparse(self.path).path
         if p == "/api/health":
             return self.send(*jobj(200, {"ok": True, "version": VERSION, "uptime_s": int(time.time() - START)}))
-        if p != "/" and not rate_ok(ip):
+        if p in ("/.well-known/mcp/server-card.json", "/.well-known/mcp.json"):
+            return self.send(200, {"Content-Type": "application/json; charset=utf-8",
+                                   "Access-Control-Allow-Origin": "*",
+                                   "Cache-Control": "public, max-age=300"},
+                             json.dumps(server_card(), ensure_ascii=False).encode())
+
+        auth = self.headers.get("Authorization") or ""
+        gk = self.headers.get("X-Api-Key") or (auth[7:] if auth.startswith("Bearer ") else None) or q1(self, "key")
+        if p != "/" and not rate_ok(ip, key=gk):
             return self.send(*jobj(429, {"ok": False, "error": "rate limit: 30 req/min per IP. Get a key: see /"}))
         if p == "/docs":
             return self.send(200, {"Content-Type": "text/html; charset=utf-8"}, DOCS_HTML)
@@ -156,11 +170,6 @@ class H(BaseHTTPRequestHandler):
             return self.send(200, {"Content-Type": "text/html; charset=utf-8"}, KEYS_HTML)
         if p == "/":
             return self.send(200, {"Content-Type": "text/html; charset=utf-8"}, INDEX_HTML)
-        if p in ("/.well-known/mcp/server-card.json", "/.well-known/mcp.json"):
-            return self.send(200, {"Content-Type": "application/json; charset=utf-8",
-                                   "Access-Control-Allow-Origin": "*",
-                                   "Cache-Control": "public, max-age=300"},
-                             json.dumps(server_card(), ensure_ascii=False).encode())
         if p.startswith("/.well-known/") and "/" not in p[13:]:
             fn = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".well-known", p[13:])
             if os.path.isfile(fn):
@@ -195,6 +204,12 @@ class H(BaseHTTPRequestHandler):
                 return self.do_feed(data)
             return self.do_article(data, url)
 
+        if p == "/api/stats":
+            with paid.KLOCK:
+                keys = len(paid.STATE["keys"])
+                calls = sum(k.get("day_count", 0) if k.get("daily") else k.get("count", 0) for k in paid.STATE["keys"].values())
+            return self.send(*jobj(200, {"ok": True, "free_requests_24h": free_count(), "keyed_calls_total": calls, "keys_issued": keys, "version": VERSION}))
+
         if p == "/api/trial":
             if self.command == "HEAD":
                 return self.send(*jobj(405, {"ok": False, "error": "GET or POST /api/trial to get a free trial key (50 req/day, no email)"}))
@@ -215,7 +230,9 @@ class H(BaseHTTPRequestHandler):
         except Exception:
             return self.send(*jobj(400, {"ok": False, "error": "invalid JSON body"}))
         p = urlparse(self.path).path
-        if not rate_ok(self.client_address[0]):
+        auth = self.headers.get("Authorization") or ""
+        pk = self.headers.get("X-Api-Key") or (auth[7:] if auth.startswith("Bearer ") else None) or q1(self, "key")
+        if not rate_ok(self.client_address[0], key=pk):
             return self.send(*jobj(429, {"ok": False, "error": "rate limit"}))
         if p == "/mcp":
             auth = self.headers.get("Authorization") or ""
